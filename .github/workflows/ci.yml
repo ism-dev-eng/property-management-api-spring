@@ -7,6 +7,11 @@ on:
     branches: [ main ]
   workflow_dispatch:  # Allows manual trigger
 
+permissions:
+  contents: read
+  checks: write        # Allows test reporter to create checks
+  pull-requests: write # Allows comments on PRs
+
 jobs:
   build-and-test:
     name: Build and Test
