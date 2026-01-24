@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+  namespace: property-management
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: property-management-api
+  template:
+    metadata:
+      labels:
+        app: property-management-api
+    spec:
+      containers:
+      - name: app
+        image: property-management-api:1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+        envFrom:
+        - configMapRef:
+            name: app-config
+        - secretRef:
+            name: db-secret
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 5
