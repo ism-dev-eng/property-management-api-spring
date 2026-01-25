@@ -1,0 +1,71 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Reference the base configuration
+resources:
+  - ../../base
+
+# Override namespace for PROD environment
+namespace: property-management-prod
+
+# Override labels
+labels:
+  - includeSelectors: true
+    pairs:
+      app: property-management-api
+      environment: prod
+      managed-by: kustomize
+
+# Patch ConfigMap and Deployment for PROD
+patches:
+  # Patch ConfigMap for PROD environment
+  - target:
+      kind: ConfigMap
+      name: app-config
+    patch: |-
+      - op: add
+        path: /data/SPRING_PROFILES_ACTIVE
+        value: "prod"
+      - op: add
+        path: /data/LOGGING_LEVEL_ROOT
+        value: "WARN"
+      - op: replace
+        path: /data/SPRING_JPA_SHOW_SQL
+        value: "false"
+      - op: replace
+        path: /data/SPRING_JPA_HIBERNATE_DDL_AUTO
+        value: "validate"
+  
+  # Patch Deployment for PROD: Add resource limits and production settings
+  - target:
+      kind: Deployment
+      name: app
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            memory: "2Gi"
+            cpu: "2000m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: "Always"
+      - op: replace
+        path: /spec/template/spec/containers/0/livenessProbe/initialDelaySeconds
+        value: 90
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe/initialDelaySeconds
+        value: 60
+
+# Override replicas for PROD (3 replicas for high availability)
+replicas:
+  - name: app
+    count: 3
+
+# Override image tag for PROD (uses specific version tags)
+images:
+  - name: property-management-api
+    newTag: 1.0.0

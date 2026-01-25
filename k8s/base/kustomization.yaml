@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: property-management
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - persistentvolumeclaim.yaml
+  - postgres-deployment.yaml
+  - postgres-service.yaml
+  - app-deployment.yaml
+  - app-service.yaml
+
+commonLabels:
+  app: property-management-api
+  managed-by: kustomize

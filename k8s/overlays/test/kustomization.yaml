@@ -1,0 +1,59 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Reference the base configuration
+resources:
+  - ../../base
+
+# Override namespace for TEST environment
+namespace: property-management-test
+
+# Override labels
+labels:
+  - includeSelectors: true
+    pairs:
+      app: property-management-api
+      environment: test
+      managed-by: kustomize
+
+# Patch ConfigMap and Deployment for TEST
+patches:
+  # Patch ConfigMap for TEST environment
+  - target:
+      kind: ConfigMap
+      name: app-config
+    patch: |-
+      - op: add
+        path: /data/SPRING_PROFILES_ACTIVE
+        value: "test"
+      - op: add
+        path: /data/LOGGING_LEVEL_ROOT
+        value: "INFO"
+      - op: replace
+        path: /data/SPRING_JPA_HIBERNATE_DDL_AUTO
+        value: "validate"
+  
+  # Patch Deployment to add resource limits
+  - target:
+      kind: Deployment
+      name: app
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            memory: "1Gi"
+            cpu: "1000m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+
+# Override replicas for TEST (2 replicas for testing redundancy)
+replicas:
+  - name: app
+    count: 2
+
+# Override image tag for TEST (uses release candidate tags)
+images:
+  - name: property-management-api
+    newTag: test-latest
