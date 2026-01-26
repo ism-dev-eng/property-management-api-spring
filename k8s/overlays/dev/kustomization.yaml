@@ -38,6 +38,7 @@ replicas:
     count: 1
 
 # Override image tag for DEV
+# k8s/overlays/dev/kustomization.yaml
 images:
-  - name: property-management-api
-    newTag: dev-latest
+  - name: ghcr.io/ism-dev-eng/property-management-api
+    newTag: develop  # ← Match the CI workflow tag

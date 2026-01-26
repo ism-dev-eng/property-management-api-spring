@@ -1,0 +1,29 @@
+name: CD - Validate DEV Configuration
+
+on:
+  push:
+    branches: [ develop ]
+  workflow_dispatch:
+
+jobs:
+  validate-dev:
+    name: Validate DEV Kustomize Configuration
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+    
+    - name: Validate DEV overlay
+      run: |
+        echo "🔍 Validating DEV environment configuration..."
+        kubectl kustomize k8s/overlays/dev
+        echo "✅ DEV configuration is valid!"
+    
+    - name: Show deployment preview
+      run: |
+        echo "📋 Preview of what would be deployed:"
+        kubectl kustomize k8s/overlays/dev | head -50
