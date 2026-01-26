@@ -1,0 +1,32 @@
+# .github/workflows/performance-test.yml
+name: Performance Testing
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  performance-test:
+    name: Performance Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    
+    # Simple performance test with Apache Bench
+    - name: Run performance test
+      run: |
+        # Start application (simplified - in real scenario, deploy first)
+        # ab -n 1000 -c 10 http://localhost:8080/api/v1/properties
+        
+        echo "Performance testing would run here"
+        echo "Use tools like: JMeter, Gatling, k6, or Apache Bench"

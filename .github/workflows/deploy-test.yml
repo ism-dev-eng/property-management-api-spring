@@ -1,4 +1,4 @@
-name: CD - Deploy to TEST
+name: CD - Validate TEST Configuration
 
 on:
   push:
@@ -16,69 +16,48 @@ permissions:
   packages: read
 
 jobs:
-  deploy-to-test:
-    name: Deploy to TEST Environment
+  validate-test:
+    name: Validate TEST Configuration
     runs-on: ubuntu-latest
     environment: test
     
     steps:
-    # Step 1: Checkout code
     - name: Checkout code
       uses: actions/checkout@v4
     
-    # Step 2: Set up kubectl
     - name: Set up kubectl
       uses: azure/setup-kubectl@v3
-      with:
-        version: 'latest'
     
-    # Step 3: Configure kubectl
-    - name: Configure kubectl
-      run: |
-        echo "Kubectl configured for TEST environment"
-    
-    # Step 4: Determine image tag
     - name: Determine image tag
       id: image-tag
       run: |
         if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
           echo "tag=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
         else
-          # Extract tag from git tag (remove 'v' prefix and '-rc*' suffix)
+          # Extract tag from git tag (keep full tag for release candidates)
           TAG="${{ github.ref_name }}"
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
         fi
+        echo "📦 Image tag: ${{ steps.image-tag.outputs.tag }}"
     
-    # Step 5: Update image tag in Kustomize overlay
-    - name: Update image tag for TEST
+    - name: Validate TEST overlay
       run: |
-        sed -i "s/newTag:.*/newTag: ${{ steps.image-tag.outputs.tag }}/" k8s/overlays/test/kustomization.yaml
-    
-    # Step 6: Preview deployment (dry-run)
-    - name: Preview deployment
-      run: |
-        echo "🔍 Previewing TEST deployment..."
+        echo "🔍 Validating TEST environment configuration..."
         kubectl kustomize k8s/overlays/test
-        echo "✅ Configuration is valid!"
+        echo "✅ TEST configuration is valid!"
     
-    # Step 7: Deploy to TEST namespace
-    - name: Deploy to TEST
+    - name: Show deployment preview
       run: |
-        echo "🚀 Deploying to TEST environment..."
-        kubectl apply -k k8s/overlays/test
+        echo "📋 Preview of what would be deployed:"
+        kubectl kustomize k8s/overlays/test | head -50
     
-    # Step 8: Wait for rollout
-    - name: Wait for rollout
+    - name: Deployment instructions
       run: |
-        echo "⏳ Waiting for deployment to complete..."
-        kubectl rollout status deployment/app -n property-management-test --timeout=5m
-    
-    # Step 9: Verify deployment
-    - name: Verify deployment
-      run: |
-        echo "✅ Verifying deployment..."
-        kubectl get pods -n property-management-test
-        kubectl get services -n property-management-test
         echo ""
-        echo "📊 Deployment summary:"
-        kubectl get all -n property-management-test
+        echo "✅ CI completed successfully!"
+        echo "📦 Image tag: ${{ steps.image-tag.outputs.tag }}"
+        echo ""
+        echo "📝 To deploy locally, run:"
+        echo "   docker pull ghcr.io/ism-dev-eng/property-management-api:${{ steps.image-tag.outputs.tag }}"
+        echo "   # Update k8s/overlays/test/kustomization.yaml with correct tag"
+        echo "   kubectl apply -k k8s/overlays/test"
