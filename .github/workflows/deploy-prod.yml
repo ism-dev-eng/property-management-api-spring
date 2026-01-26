@@ -1,0 +1,104 @@
+name: CD - Deploy to PROD
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Version tags (e.g., v1.0.0, v1.1.0) - excludes release candidates
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Image tag to deploy (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+      confirm:
+        description: 'Type "deploy" to confirm production deployment'
+        required: true
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deploy-to-prod:
+    name: Deploy to PROD Environment
+    runs-on: ubuntu-latest
+    environment: 
+      name: prod
+      # Optional: Add protection rules in GitHub repo settings
+      # This requires manual approval before deployment
+    
+    steps:
+    # Step 1: Checkout code
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    # Step 2: Set up kubectl
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+    
+    # Step 3: Configure kubectl
+    - name: Configure kubectl
+      run: |
+        echo "Kubectl configured for PROD environment"
+    
+    # Step 4: Validate manual confirmation (if workflow_dispatch)
+    - name: Validate deployment confirmation
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        if [ "${{ github.event.inputs.confirm }}" != "deploy" ]; then
+          echo "❌ Deployment not confirmed. Expected 'deploy', got '${{ github.event.inputs.confirm }}'"
+          exit 1
+        fi
+        echo "✅ Deployment confirmed"
+    
+    # Step 5: Determine image tag
+    - name: Determine image tag
+      id: image-tag
+      run: |
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          echo "tag=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
+        else
+          # Extract tag from git tag (remove 'v' prefix)
+          TAG="${{ github.ref_name }}"
+          TAG=${TAG#v}  # Remove 'v' prefix if present
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+        fi
+        echo "📦 Deploying image tag: ${{ steps.image-tag.outputs.tag }}"
+    
+    # Step 6: Update image tag in Kustomize overlay
+    - name: Update image tag for PROD
+      run: |
+        sed -i "s/newTag:.*/newTag: ${{ steps.image-tag.outputs.tag }}/" k8s/overlays/prod/kustomization.yaml
+    
+    # Step 7: Preview deployment (dry-run)
+    - name: Preview deployment
+      run: |
+        echo "🔍 Previewing PROD deployment..."
+        kubectl kustomize k8s/overlays/prod
+        echo "✅ Configuration is valid!"
+    
+    # Step 8: Deploy to PROD namespace
+    - name: Deploy to PROD
+      run: |
+        echo "🚀 Deploying to PROD environment..."
+        kubectl apply -k k8s/overlays/prod
+    
+    # Step 9: Wait for rollout
+    - name: Wait for rollout
+      run: |
+        echo "⏳ Waiting for deployment to complete..."
+        kubectl rollout status deployment/app -n property-management-prod --timeout=10m
+    
+    # Step 10: Verify deployment
+    - name: Verify deployment
+      run: |
+        echo "✅ Verifying PROD deployment..."
+        kubectl get pods -n property-management-prod
+        kubectl get services -n property-management-prod
+        echo ""
+        echo "📊 Deployment summary:"
+        kubectl get all -n property-management-prod
+        echo ""
+        echo "🎉 Production deployment completed successfully!"

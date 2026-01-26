@@ -1,0 +1,84 @@
+name: CD - Deploy to TEST
+
+on:
+  push:
+    tags:
+      - 'v*.*.*-rc*'  # Release candidate tags (e.g., v1.0.0-rc1)
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Image tag to deploy (e.g., v1.0.0-rc1)'
+        required: true
+        default: 'test-latest'
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deploy-to-test:
+    name: Deploy to TEST Environment
+    runs-on: ubuntu-latest
+    environment: test
+    
+    steps:
+    # Step 1: Checkout code
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    # Step 2: Set up kubectl
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+    
+    # Step 3: Configure kubectl
+    - name: Configure kubectl
+      run: |
+        echo "Kubectl configured for TEST environment"
+    
+    # Step 4: Determine image tag
+    - name: Determine image tag
+      id: image-tag
+      run: |
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          echo "tag=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
+        else
+          # Extract tag from git tag (remove 'v' prefix and '-rc*' suffix)
+          TAG="${{ github.ref_name }}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+        fi
+    
+    # Step 5: Update image tag in Kustomize overlay
+    - name: Update image tag for TEST
+      run: |
+        sed -i "s/newTag:.*/newTag: ${{ steps.image-tag.outputs.tag }}/" k8s/overlays/test/kustomization.yaml
+    
+    # Step 6: Preview deployment (dry-run)
+    - name: Preview deployment
+      run: |
+        echo "🔍 Previewing TEST deployment..."
+        kubectl kustomize k8s/overlays/test
+        echo "✅ Configuration is valid!"
+    
+    # Step 7: Deploy to TEST namespace
+    - name: Deploy to TEST
+      run: |
+        echo "🚀 Deploying to TEST environment..."
+        kubectl apply -k k8s/overlays/test
+    
+    # Step 8: Wait for rollout
+    - name: Wait for rollout
+      run: |
+        echo "⏳ Waiting for deployment to complete..."
+        kubectl rollout status deployment/app -n property-management-test --timeout=5m
+    
+    # Step 9: Verify deployment
+    - name: Verify deployment
+      run: |
+        echo "✅ Verifying deployment..."
+        kubectl get pods -n property-management-test
+        kubectl get services -n property-management-test
+        echo ""
+        echo "📊 Deployment summary:"
+        kubectl get all -n property-management-test

@@ -55,5 +55,5 @@ replicas:
 
 # Override image tag for TEST (uses release candidate tags)
 images:
-  - name: property-management-api
+  - name: ghcr.io/ism-dev-eng/property-management-api
     newTag: test-latest

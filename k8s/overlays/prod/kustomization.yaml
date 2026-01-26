@@ -67,5 +67,5 @@ replicas:
 
 # Override image tag for PROD (uses specific version tags)
 images:
-  - name: property-management-api
+  - name: ghcr.io/ism-dev-eng/property-management-api
     newTag: 1.0.0

@@ -7,7 +7,7 @@ on:
 
 jobs:
   validate-dev:
-    name: Validate DEV Kustomize Configuration
+    name: Validate DEV Configuration
     runs-on: ubuntu-latest
     
     steps:
@@ -19,11 +19,5 @@ jobs:
     
     - name: Validate DEV overlay
       run: |
-        echo "🔍 Validating DEV environment configuration..."
         kubectl kustomize k8s/overlays/dev
         echo "✅ DEV configuration is valid!"
-    
-    - name: Show deployment preview
-      run: |
-        echo "📋 Preview of what would be deployed:"
-        kubectl kustomize k8s/overlays/dev | head -50
