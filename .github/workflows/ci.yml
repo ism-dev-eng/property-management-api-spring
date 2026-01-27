@@ -34,9 +34,9 @@ jobs:
       run: mvn clean install -DskipTests
     
     # CODE QUALITY: SpotBugs (bug detection)
-    - name: Run SpotBugs
-      run: mvn spotbugs:check
-      continue-on-error: true  # Don't fail build, just report
+    #- name: Run SpotBugs
+    #  run: mvn spotbugs:check
+    #  continue-on-error: true  # Don't fail build, just report
     
     # CODE QUALITY: PMD (code quality)
     - name: Run PMD

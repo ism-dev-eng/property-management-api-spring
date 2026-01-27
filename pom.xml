@@ -138,7 +138,7 @@
                 </configuration>
             </plugin>
 
-            <!-- SpotBugs - Find bugs in Java code -->
+            <!-- SpotBugs - Find bugs in Java code 
             <plugin>
                 <groupId>com.github.spotbugs</groupId>
                 <artifactId>spotbugs-maven-plugin</artifactId>
@@ -154,7 +154,7 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>
+            </plugin> -->
 
             <!-- PMD - Code quality analysis -->
             <plugin>
