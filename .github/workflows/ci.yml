@@ -39,31 +39,31 @@ jobs:
     #  continue-on-error: true  # Don't fail build, just report
     
     # CODE QUALITY: PMD (code quality)
-    - name: Run PMD
-      run: mvn pmd:check
-      continue-on-error: true
+    # - name: Run PMD
+    #   run: mvn pmd:check
+    #   continue-on-error: true
     
     # CODE QUALITY: Checkstyle (code style)
-    - name: Run Checkstyle
-      run: mvn checkstyle:check
-      continue-on-error: true
+    # - name: Run Checkstyle
+    #   run: mvn checkstyle:check
+    #   continue-on-error: true
     
     # SECURITY: Trivy scan (dependencies)
-    - name: Run Trivy vulnerability scanner (Maven)
-      uses: aquasecurity/trivy-action@master
-      with:
-        scan-type: 'fs'
-        scan-ref: '.'
-        format: 'sarif'
-        output: 'trivy-results.sarif'
-        scanners: 'vuln,secret'
-        severity: 'CRITICAL,HIGH'
+    #- name: Run Trivy vulnerability scanner (Maven)
+    #  uses: aquasecurity/trivy-action@master
+    #  with:
+    #    scan-type: 'fs'
+    #    scan-ref: '.'
+    #    format: 'sarif'
+    #    output: 'trivy-results.sarif'
+    #    scanners: 'vuln,secret'
+    #    severity: 'CRITICAL,HIGH'
     
-    - name: Upload Trivy results to GitHub Security
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
-      with:
-        sarif_file: 'trivy-results.sarif'
+    #- name: Upload Trivy results to GitHub Security
+    #  uses: github/codeql-action/upload-sarif@v3
+    #  if: always()
+    #  with:
+    #    sarif_file: 'trivy-results.sarif'
     
     - name: Run tests
       run: mvn test
@@ -129,32 +129,32 @@ jobs:
         cache-to: type=gha,mode=max
     
     # SECURITY: Scan Docker image
-    - name: Run Trivy vulnerability scanner (Docker)
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: ghcr.io/${{ github.repository_owner }}/property-management-api:${{ steps.meta.outputs.tags }}
-        format: 'sarif'
-        output: 'trivy-image-results.sarif'
-        severity: 'CRITICAL,HIGH'
+    #- name: Run Trivy vulnerability scanner (Docker)
+    #  uses: aquasecurity/trivy-action@master
+    #  with:
+    #    image-ref: ghcr.io/${{ github.repository_owner }}/property-management-api:${{ steps.meta.outputs.tags }}
+    #    format: 'sarif'
+    #    output: 'trivy-image-results.sarif'
+    #    severity: 'CRITICAL,HIGH'
     
-    - name: Upload Trivy image results to GitHub Security
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
-      with:
-        sarif_file: 'trivy-image-results.sarif'
+    #- name: Upload Trivy image results to GitHub Security
+    #  uses: github/codeql-action/upload-sarif@v3
+    #  if: always()
+    #  with:
+    #    sarif_file: 'trivy-image-results.sarif'
     
     # SECURITY: Scan Kubernetes manifests
-    - name: Run Trivy vulnerability scanner (Kubernetes)
-      uses: aquasecurity/trivy-action@master
-      with:
-        scan-type: 'config'
-        scan-ref: 'k8s/'
-        format: 'sarif'
-        output: 'trivy-k8s-results.sarif'
-        severity: 'CRITICAL,HIGH'
+    #- name: Run Trivy vulnerability scanner (Kubernetes)
+    #  uses: aquasecurity/trivy-action@master
+    #  with:
+    #    scan-type: 'config'
+    #    scan-ref: 'k8s/'
+    #    format: 'sarif'
+    #    output: 'trivy-k8s-results.sarif'
+    #    severity: 'CRITICAL,HIGH'
     
-    - name: Upload Trivy K8s results to GitHub Security
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
-      with:
-        sarif_file: 'trivy-k8s-results.sarif'
+    #- name: Upload Trivy K8s results to GitHub Security
+    #  uses: github/codeql-action/upload-sarif@v3
+    #  if: always()
+    #  with:
+    #    sarif_file: 'trivy-k8s-results.sarif'

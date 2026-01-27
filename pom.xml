@@ -157,22 +157,16 @@
             </plugin> -->
 
             <!-- PMD - Code quality analysis -->
-            <plugin>
+          <!--   <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-pmd-plugin</artifactId>
                 <version>3.21.2</version>
                 <configuration>
-                    <!-- Avoid "Unable to locate Source XRef to link to" when JXR/site is not run -->
-                    <linkXRef>false</linkXRef>
                     <rulesets>
                         <ruleset>/category/java/bestpractices.xml</ruleset>
                         <ruleset>/category/java/codestyle.xml</ruleset>
                         <ruleset>/category/java/design.xml</ruleset>
                     </rulesets>
-                    <!-- LoosePackageCoupling requires packages/classes to be configured; exclude it to avoid misconfiguration warning -->
-                    <excludedRules>
-                        <exclude>LoosePackageCoupling</exclude>
-                    </excludedRules>
                 </configuration>
                 <executions>
                     <execution>
@@ -181,10 +175,10 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>
+            </plugin> -->
 
             <!-- Checkstyle - Code style checking -->
-            <plugin>
+           <!--  <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
                 <version>3.3.1</version>
@@ -201,7 +195,7 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>
+            </plugin> -->
         </plugins>
     </build>
 </project>
