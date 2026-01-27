@@ -1,32 +1,32 @@
-name: CD - Validate TEST Configuration
+# .github/workflows/deploy-test.yml
+name: CD - Deploy to TEST
 
 on:
   push:
     tags:
-      - 'v*.*.*-rc*'  # Release candidate tags (e.g., v1.0.0-rc1)
+      - 'v*.*.*-rc*'  # Release candidate tags
   workflow_dispatch:
     inputs:
       image_tag:
-        description: 'Image tag to deploy (e.g., v1.0.0-rc1)'
+        description: 'Image tag to deploy'
         required: true
         default: 'test-latest'
 
 permissions:
-  contents: read
+  contents: write  # Need write to update kustomization.yaml
   packages: read
 
 jobs:
-  validate-test:
-    name: Validate TEST Configuration
+  update-and-deploy:
+    name: Update TEST Configuration
     runs-on: ubuntu-latest
     environment: test
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
-    - name: Set up kubectl
-      uses: azure/setup-kubectl@v3
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Determine image tag
       id: image-tag
@@ -34,30 +34,24 @@ jobs:
         if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
           echo "tag=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
         else
-          # Extract tag from git tag (keep full tag for release candidates)
           TAG="${{ github.ref_name }}"
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
         fi
         echo "📦 Image tag: ${{ steps.image-tag.outputs.tag }}"
     
-    - name: Validate TEST overlay
+    - name: Update Kustomization with image tag
       run: |
-        echo "🔍 Validating TEST environment configuration..."
+        # Update image tag in kustomization.yaml
+        sed -i "s|newTag:.*|newTag: ${{ steps.image-tag.outputs.tag }}|" k8s/overlays/test/kustomization.yaml
+        
+        # Commit and push (triggers ArgoCD sync)
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add k8s/overlays/test/kustomization.yaml
+        git commit -m "chore: update TEST image tag to ${{ steps.image-tag.outputs.tag }}" || exit 0
+        git push
+    
+    - name: Validate configuration
+      run: |
         kubectl kustomize k8s/overlays/test
-        echo "✅ TEST configuration is valid!"
-    
-    - name: Show deployment preview
-      run: |
-        echo "📋 Preview of what would be deployed:"
-        kubectl kustomize k8s/overlays/test | head -50
-    
-    - name: Deployment instructions
-      run: |
-        echo ""
-        echo "✅ CI completed successfully!"
-        echo "📦 Image tag: ${{ steps.image-tag.outputs.tag }}"
-        echo ""
-        echo "📝 To deploy locally, run:"
-        echo "   docker pull ghcr.io/ism-dev-eng/property-management-api:${{ steps.image-tag.outputs.tag }}"
-        echo "   # Update k8s/overlays/test/kustomization.yaml with correct tag"
-        echo "   kubectl apply -k k8s/overlays/test"
+        echo "✅ Configuration valid!"

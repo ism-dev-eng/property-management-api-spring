@@ -12,7 +12,7 @@ permissions:
   checks: write
   pull-requests: write
   packages: write
-  security-events: write  # NEW: For security scanning
+  security-events: write
 
 jobs:
   build-and-test:
@@ -32,8 +32,23 @@ jobs:
         
     - name: Build with Maven
       run: mvn clean install -DskipTests
-      
-    # NEW: Scan dependencies for vulnerabilities
+    
+    # CODE QUALITY: SpotBugs (bug detection)
+    - name: Run SpotBugs
+      run: mvn spotbugs:check
+      continue-on-error: true  # Don't fail build, just report
+    
+    # CODE QUALITY: PMD (code quality)
+    - name: Run PMD
+      run: mvn pmd:check
+      continue-on-error: true
+    
+    # CODE QUALITY: Checkstyle (code style)
+    - name: Run Checkstyle
+      run: mvn checkstyle:check
+      continue-on-error: true
+    
+    # SECURITY: Trivy scan (dependencies)
     - name: Run Trivy vulnerability scanner (Maven)
       uses: aquasecurity/trivy-action@master
       with:
@@ -44,7 +59,6 @@ jobs:
         scanners: 'vuln,secret'
         severity: 'CRITICAL,HIGH'
     
-    # NEW: Upload security results to GitHub Security tab
     - name: Upload Trivy results to GitHub Security
       uses: github/codeql-action/upload-sarif@v3
       if: always()
@@ -53,6 +67,17 @@ jobs:
     
     - name: Run tests
       run: mvn test
+    
+    - name: Upload test reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-reports
+        path: |
+          target/surefire-reports/
+          target/spotbugsXml.xml
+          target/pmd.xml
+          target/checkstyle-result.xml
     
     - name: Upload JAR
       uses: actions/upload-artifact@v4
@@ -103,7 +128,7 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
     
-    # NEW: Scan Docker image for vulnerabilities
+    # SECURITY: Scan Docker image
     - name: Run Trivy vulnerability scanner (Docker)
       uses: aquasecurity/trivy-action@master
       with:
@@ -112,14 +137,13 @@ jobs:
         output: 'trivy-image-results.sarif'
         severity: 'CRITICAL,HIGH'
     
-    # NEW: Upload image scan results
     - name: Upload Trivy image results to GitHub Security
       uses: github/codeql-action/upload-sarif@v3
       if: always()
       with:
         sarif_file: 'trivy-image-results.sarif'
     
-    # NEW: Scan Kubernetes manifests
+    # SECURITY: Scan Kubernetes manifests
     - name: Run Trivy vulnerability scanner (Kubernetes)
       uses: aquasecurity/trivy-action@master
       with:
