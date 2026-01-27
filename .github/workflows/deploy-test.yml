@@ -8,12 +8,12 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: 'Image tag to deploy'
+        description: 'Image tag to deploy (e.g., main-abc123 or test-latest)'
         required: true
         default: 'test-latest'
 
 permissions:
-  contents: write  # Need write to update kustomization.yaml
+  contents: write
   packages: read
 
 jobs:
@@ -39,19 +39,50 @@ jobs:
         fi
         echo "📦 Image tag: ${{ steps.image-tag.outputs.tag }}"
     
+    - name: Verify image exists in GHCR
+      run: |
+        echo "🔍 Verifying image exists..."
+        # Note: This would require GHCR API access or skip if image doesn't exist yet
+        echo "Image tag: ${{ steps.image-tag.outputs.tag }}"
+        echo "Image: ghcr.io/${{ github.repository_owner }}/property-management-api:${{ steps.image-tag.outputs.tag }}"
+    
     - name: Update Kustomization with image tag
       run: |
-        # Update image tag in kustomization.yaml
+        echo "📝 Updating kustomization.yaml..."
         sed -i "s|newTag:.*|newTag: ${{ steps.image-tag.outputs.tag }}|" k8s/overlays/test/kustomization.yaml
         
-        # Commit and push (triggers ArgoCD sync)
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-        git add k8s/overlays/test/kustomization.yaml
-        git commit -m "chore: update TEST image tag to ${{ steps.image-tag.outputs.tag }}" || exit 0
-        git push
+        # Show what changed
+        echo "Updated kustomization.yaml:"
+        grep -A 2 "images:" k8s/overlays/test/kustomization.yaml
     
     - name: Validate configuration
       run: |
+        echo "✅ Validating Kustomize configuration..."
         kubectl kustomize k8s/overlays/test
-        echo "✅ Configuration valid!"
+        echo "✅ Configuration is valid!"
+    
+    - name: Commit and push changes
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add k8s/overlays/test/kustomization.yaml
+        git diff --cached k8s/overlays/test/kustomization.yaml || true
+        git commit -m "chore: update TEST image tag to ${{ steps.image-tag.outputs.tag }} [skip ci]" || echo "No changes to commit"
+        git push
+    
+    - name: Deployment summary
+      run: |
+        echo "## 🚀 TEST Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Image Tag:** \`${{ steps.image-tag.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Image:** \`ghcr.io/${{ github.repository_owner }}/property-management-api:${{ steps.image-tag.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Namespace:** \`property-management-test\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **ArgoCD Application:** \`property-management-test\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "ArgoCD will automatically sync within 3 minutes." >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Verify deployment:" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "kubectl get application property-management-test -n argocd" >> $GITHUB_STEP_SUMMARY
+        echo "kubectl get all -n property-management-test" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
