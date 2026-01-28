@@ -29,6 +29,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          ref: main
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Validate deployment confirmation
@@ -51,7 +52,16 @@ jobs:
             echo "tag=${TAG}" >> $GITHUB_OUTPUT
           fi
           echo "📦 Image tag: ${{ steps.image-tag.outputs.tag }}"
-
+     
+      - name: Verify image exists in GHCR
+        run: |
+          IMAGE_TAG="${{ steps.image-tag.outputs.tag }}"
+          REPO_OWNER="${{ github.repository_owner }}"
+          IMAGE="ghcr.io/${REPO_OWNER}/property-management-api:${IMAGE_TAG}"
+          echo "📦 Deploying image: ${IMAGE}"
+          echo "⚠️  Ensure this image exists in GHCR before proceeding."
+          echo "   Check: https://github.com/${REPO_OWNER}?tab=packages"
+     
       - name: Update image tag for PROD
         run: |
           sed -i "s/newTag:.*/newTag: ${{ steps.image-tag.outputs.tag }}/" k8s/overlays/prod/kustomization.yaml
@@ -74,7 +84,8 @@ jobs:
           git add k8s/overlays/prod/kustomization.yaml
           git diff --cached k8s/overlays/prod/kustomization.yaml || true
           git commit -m "chore(prod): update PROD image tag to ${{ steps.image-tag.outputs.tag }} [skip ci]" || echo "No changes to commit"
-          git push
+          git pull --rebase origin main
+          git push origin main
 
       - name: Deployment summary
         run: |
