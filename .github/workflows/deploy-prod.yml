@@ -15,7 +15,7 @@ on:
         required: true
 
 permissions:
-  contents: read
+  contents: write   # needed to push the kustomization change
   packages: read
 
 jobs:
@@ -31,18 +31,10 @@ jobs:
     # Step 1: Checkout code
     - name: Checkout code
       uses: actions/checkout@v4
-    
-    # Step 2: Set up kubectl
-    - name: Set up kubectl
-      uses: azure/setup-kubectl@v3
       with:
-        version: 'latest'
-    
-    # Step 3: Configure kubectl
-    - name: Configure kubectl
-      run: |
-        echo "Kubectl configured for PROD environment"
-    
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+  
     # Step 4: Validate manual confirmation (if workflow_dispatch)
     - name: Validate deployment confirmation
       if: github.event_name == 'workflow_dispatch'
@@ -71,34 +63,42 @@ jobs:
     - name: Update image tag for PROD
       run: |
         sed -i "s/newTag:.*/newTag: ${{ steps.image-tag.outputs.tag }}/" k8s/overlays/prod/kustomization.yaml
-    
+
+  - name: Validate configuration
+      run: |
+        echo "✅ Validating Kustomize configuration..."
+        kubectl kustomize k8s/overlays/prod
+        echo "✅ Configuration is valid!" 
+
     # Step 7: Preview deployment (dry-run)
     - name: Preview deployment
       run: |
         echo "🔍 Previewing PROD deployment..."
         kubectl kustomize k8s/overlays/prod
         echo "✅ Configuration is valid!"
-    
-    # Step 8: Deploy to PROD namespace
-    - name: Deploy to PROD
+        
+            - name: Commit and push changes
       run: |
-        echo "🚀 Deploying to PROD environment..."
-        kubectl apply -k k8s/overlays/prod
-    
-    # Step 9: Wait for rollout
-    - name: Wait for rollout
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add k8s/overlays/prod/kustomization.yaml
+        git diff --cached k8s/overlays/prod/kustomization.yaml || true
+        git commit -m "chore(prod): update PROD image tag to ${{ steps.image-tag.outputs.tag }} [skip ci]" || echo "No changes to commit"
+        git push
+
+        - name: Deployment summary
       run: |
-        echo "⏳ Waiting for deployment to complete..."
-        kubectl rollout status deployment/app -n property-management-prod --timeout=10m
-    
-    # Step 10: Verify deployment
-    - name: Verify deployment
-      run: |
-        echo "✅ Verifying PROD deployment..."
-        kubectl get pods -n property-management-prod
-        kubectl get services -n property-management-prod
-        echo ""
-        echo "📊 Deployment summary:"
-        kubectl get all -n property-management-prod
-        echo ""
-        echo "🎉 Production deployment completed successfully!"
+        echo "## 🚀 PROD Deployment (Git updated)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Image Tag:** \`${{ steps.image-tag.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Image:** \`ghcr.io/${{ github.repository_owner }}/property-management-api:${{ steps.image-tag.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Namespace:** \`property-management-prod\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **ArgoCD Application:** \`property-management-prod\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "⚠️ **Manual step:** Open ArgoCD UI → property-management-prod → review diff → **Sync** to deploy." >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Verify after sync:" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "kubectl get application property-management-prod -n argocd" >> $GITHUB_STEP_SUMMARY
+        echo "kubectl get all -n property-management-prod" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY    
