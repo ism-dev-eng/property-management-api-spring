@@ -80,7 +80,9 @@ jobs:
         run: |
           IMAGE_TAG="${{ steps.image-tag.outputs.tag }}"
           REPO_OWNER="${{ github.repository_owner }}"
-          echo "## 🚀 PROD Deployment (Git updated)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Deployment summary"
+          echo "Deployment summary"
+ #         echo "## 🚀 PROD Deployment (Git updated)" >> $GITHUB_STEP_SUMMARY
+ #         echo "" >> $GITHUB_STEP_SUMMARY
  #         echo "- **Image Tag:** \`${IMAGE_TAG}\`" >> $GITHUB_STEP_SUMMARY
  #         echo "- **Image:** \`ghcr.io/${REPO_OWNER}/property-management-api:${IMAGE_TAG}\`" >> $GITHUB_STEP_SUMMARY
