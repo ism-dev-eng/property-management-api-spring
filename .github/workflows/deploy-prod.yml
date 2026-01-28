@@ -3,7 +3,7 @@ name: CD - Deploy to PROD
 on:
   push:
     tags:
-      - 'v*.*.*'  # Version tags (e.g., v1.0.0, v1.1.0) - excludes release candidates
+      - 'v*.*.*'  # Version tags (e.g., v1.0.0) - triggers CD
   workflow_dispatch:
     inputs:
       image_tag:
@@ -15,90 +15,70 @@ on:
         required: true
 
 permissions:
-  contents: write   # needed to push the kustomization change
+  contents: write
   packages: read
 
 jobs:
   deploy-to-prod:
     name: Deploy to PROD Environment
     runs-on: ubuntu-latest
-    environment: 
+    environment:
       name: prod
-      # Optional: Add protection rules in GitHub repo settings
-      # This requires manual approval before deployment
-    
+
     steps:
-    # Step 1: Checkout code
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-  
-    # Step 4: Validate manual confirmation (if workflow_dispatch)
-    - name: Validate deployment confirmation
-      if: github.event_name == 'workflow_dispatch'
-      run: |
-        if [ "${{ github.event.inputs.confirm }}" != "deploy" ]; then
-          echo "❌ Deployment not confirmed. Expected 'deploy', got '${{ github.event.inputs.confirm }}'"
-          exit 1
-        fi
-        echo "✅ Deployment confirmed"
-    
-    # Step 5: Determine image tag
-    - name: Determine image tag
-      id: image-tag
-      run: |
-        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-          echo "tag=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
-        else
-          # Extract tag from git tag (remove 'v' prefix)
-          TAG="${{ github.ref_name }}"
-          TAG=${TAG#v}  # Remove 'v' prefix if present
-          echo "tag=${TAG}" >> $GITHUB_OUTPUT
-        fi
-        echo "📦 Deploying image tag: ${{ steps.image-tag.outputs.tag }}"
-    
-    # Step 6: Update image tag in Kustomize overlay
-    - name: Update image tag for PROD
-      run: |
-        sed -i "s/newTag:.*/newTag: ${{ steps.image-tag.outputs.tag }}/" k8s/overlays/prod/kustomization.yaml
+      - name: Validate deployment confirmation
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "deploy" ]; then
+            echo "❌ Deployment not confirmed. Expected 'deploy', got '${{ github.event.inputs.confirm }}'"
+            exit 1
+          fi
+          echo "✅ Deployment confirmed"
 
-  - name: Validate configuration
-      run: |
-        echo "✅ Validating Kustomize configuration..."
-        kubectl kustomize k8s/overlays/prod
-        echo "✅ Configuration is valid!" 
+      - name: Determine image tag
+        id: image-tag
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
+          else
+            TAG="${{ github.ref_name }}"
+            TAG=${TAG#v}
+            echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          fi
+          echo "📦 Image tag: ${{ steps.image-tag.outputs.tag }}"
 
-    # Step 7: Preview deployment (dry-run)
-    - name: Preview deployment
-      run: |
-        echo "🔍 Previewing PROD deployment..."
-        kubectl kustomize k8s/overlays/prod
-        echo "✅ Configuration is valid!"
-        
-            - name: Commit and push changes
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-        git add k8s/overlays/prod/kustomization.yaml
-        git diff --cached k8s/overlays/prod/kustomization.yaml || true
-        git commit -m "chore(prod): update PROD image tag to ${{ steps.image-tag.outputs.tag }} [skip ci]" || echo "No changes to commit"
-        git push
+      - name: Update image tag for PROD
+        run: |
+          sed -i "s/newTag:.*/newTag: ${{ steps.image-tag.outputs.tag }}/" k8s/overlays/prod/kustomization.yaml
 
-        - name: Deployment summary
-      run: |
-        echo "## 🚀 PROD Deployment (Git updated)" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "- **Image Tag:** \`${{ steps.image-tag.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
-        echo "- **Image:** \`ghcr.io/${{ github.repository_owner }}/property-management-api:${{ steps.image-tag.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
-        echo "- **Namespace:** \`property-management-prod\`" >> $GITHUB_STEP_SUMMARY
-        echo "- **ArgoCD Application:** \`property-management-prod\`" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "⚠️ **Manual step:** Open ArgoCD UI → property-management-prod → review diff → **Sync** to deploy." >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Verify after sync:" >> $GITHUB_STEP_SUMMARY
-        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-        echo "kubectl get application property-management-prod -n argocd" >> $GITHUB_STEP_SUMMARY
-        echo "kubectl get all -n property-management-prod" >> $GITHUB_STEP_SUMMARY
-        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY    
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Validate configuration
+        run: |
+          echo "✅ Validating Kustomize (no cluster needed)..."
+          kubectl kustomize k8s/overlays/prod
+          echo "✅ Configuration is valid!"
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add k8s/overlays/prod/kustomization.yaml
+          git diff --cached k8s/overlays/prod/kustomization.yaml || true
+          git commit -m "chore(prod): update PROD image tag to ${{ steps.image-tag.outputs.tag }} [skip ci]" || echo "No changes to commit"
+          git push
+
+      - name: Deployment summary
+        run: |
+          echo "## 🚀 PROD Deployment (Git updated)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Tag:** \`${{ steps.image-tag.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image:** \`ghcr.io/${{ github.repository_owner }}/property-management-api:${{ steps.image-tag.outputs.tag
