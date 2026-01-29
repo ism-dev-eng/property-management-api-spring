@@ -63,7 +63,7 @@ patches:
 # Override replicas for PROD (3 replicas for high availability)
 replicas:
   - name: app
-    count: 3
+    count: 4
 
 # Override image tag for PROD (uses specific version tags)
 images:
